@@ -45,7 +45,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f7; margin: 
 </div>
 
 <div class="footer-note">
-Note: Chuttiyon ki jankari school notice board se confirm karein.
+Note: For further updates regarding holiday details, kindly check the school notice board.".
 </div>
 </div>
 
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(err => {
         document.getElementById('loader').innerText = "Failed to load calendar.";
-        Swal.fire('Error', 'Calendar data load nahi ho saka.', 'error');
+        Swal.fire('Error', 'Calendar data could not load .', 'error');
     });
 
     function updateMonthlyList(allEvents, currentMonthDate) {
