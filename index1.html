@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css' rel='stylesheet' />
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f7; margin: 0; padding: 80px 10px 20px 10px; }
+.main-card { max-width: 900px; margin: auto; background: white; border-radius: 10px; border: 2px solid #000; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.header { background: #1e3c72; color: white; text-align: center; padding: 12px; border-bottom: 2px solid #000; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; }
+#calendar { padding: 10px; background: #fff; }
+.fc-theme-standard td, .fc-theme-standard th { border: 1px solid #000 !important; }
+.fc .fc-daygrid-day-top { justify-content: center !important; padding-top: 5px; }
+.fc-daygrid-day-number { font-weight: 800 !important; color: #000 !important; font-size: 1.1em; text-decoration: none !important; }
+.event-list-container { padding: 15px; background: #fff; border-top: 2px solid #000; }
+.list-title { font-weight: bold; color: #1e3c72; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+.event-item { display: flex; align-items: center; padding: 10px 5px; border-bottom: 1px solid #eee; }
+.date-tag { font-weight: bold; color: #dc3545; min-width: 115px; }
+.footer-note { background: #fff3cd; color: #856404; padding: 15px; text-align: left; font-weight: bold; border-top: 2px solid #000; font-size: 14px; }
+.legend { text-align: center; padding: 10px; font-size: 13px; font-weight: 600; background: #fff; }
+.dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin: 0 5px 0 15px; }
+#loader { text-align: center; padding: 20px; font-weight: bold; color: #1e3c72; }
+</style>
+</head>
+<body>
+
+<div class="header">
+<h2 style="margin:0; font-size: 20px;">SCHOOL CALENDAR 2026</h2>
+</div>
+
+<div class="main-card">
+<div class="legend">
+<span class="dot" style="background:#dc3545"></span> Holiday
+<span class="dot" style="background:#28a745"></span> Event/Vacation
+</div>
+
+<div id="loader">📅 Fetching Calendar...</div>
+<div id='calendar'></div>
+
+<div class="event-list-container">
+<div class="list-title" id="monthTitle">Monthly List</div>
+<div id="monthlyList">Loading...</div>
+</div>
+
+<div class="footer-note">
+Note: For further updates regarding holiday details, kindly check the school notice board.
+</div>
+</div>
+
+<script>
+// YAHAN APNA WEB APP URL PASTE KAREIN
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzbZVp_nKi3lfNWpYA-jU0pL-jtJs0s_VPxpyShMStsLGCG2IZ4wZehL4KkwbB0ydrvaQ/exec";
+
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var monthlyListEl = document.getElementById('monthlyList');
+    var monthTitleEl = document.getElementById('monthTitle');
+
+    fetch(WEB_APP_URL + "?action=getCalendarEvents")
+    .then(res => res.json())
+    .then(events => {
+        document.getElementById('loader').style.display = 'none';
+        
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+            events: events,
+            height: 'auto',
+            datesSet: function(info) {
+                // 'end' property bhi map ki gayi hai taaki date range mil sake
+                let currentEvents = calendar.getEvents().map(e => ({
+                    title: e.title,
+                    start: e.start,
+                    end: e.end
+                }));
+                updateMonthlyList(currentEvents, info.view.currentStart);
+            },
+            eventClick: function(info) {
+                let endDateText = "";
+                if (info.event.end) {
+                    let realEnd = new Date(info.event.end);
+                    realEnd.setDate(realEnd.getDate() - 1); // FullCalendar ki exclusive date adjust karne ke liye
+                    if (realEnd > info.event.start) {
+                        endDateText = " to " + realEnd.toLocaleDateString();
+                    }
+                }
+                Swal.fire({
+                    title: info.event.title,
+                    text: "Date: " + info.event.start.toLocaleDateString() + endDateText,
+                    icon: 'info',
+                    confirmButtonColor: '#1e3c72'
+                });
+            }
+        });
+        calendar.render();
+    })
+    .catch(err => {
+        document.getElementById('loader').innerText = "Failed to load calendar.";
+        Swal.fire('Error', 'Calendar data could not load .', 'error');
+    });
+
+    function updateMonthlyList(allEvents, currentMonthDate) {
+        let m = currentMonthDate.getMonth();
+        let y = currentMonthDate.getFullYear();
+        let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        
+        monthTitleEl.innerText = "Holidays & Events: " + months[m] + " " + y;
+        
+        let filtered = allEvents.filter(e => e.start.getMonth() === m && e.start.getFullYear() === y);
+        filtered.sort((a, b) => a.start - b.start);
+
+        if (filtered.length === 0) {
+            monthlyListEl.innerHTML = "<p style='color:#777; padding:10px;'>Is mahine koi chutti nahi hai.</p>";
+            return;
+        }
+
+        let html = "";
+        filtered.forEach(e => {
+            let startStr = e.start.getDate() + " " + months[e.start.getMonth()].substring(0,3);
+            let dateDisplay = startStr;
+
+            // Agar end date maujood hai toh range format (`17 Oct - 21 Oct`) banayein
+            if (e.end) {
+                let realEnd = new Date(e.end);
+                realEnd.setDate(realEnd.getDate() - 1); 
+                if (realEnd > e.start) {
+                    let endStr = realEnd.getDate() + " " + months[realEnd.getMonth()].substring(0,3);
+                    dateDisplay = startStr + " - " + endStr;
+                }
+            }
+
+            html += `<div class="event-item">
+            <span class="date-tag">${dateDisplay}</span>
+            <span style="flex-grow:1; font-weight:500;">${e.title}</span>
+            </div>`;
+        });
+        monthlyListEl.innerHTML = html;
+    }
+});
+</script>
+</body>
+</html>
